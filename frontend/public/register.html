@@ -1,0 +1,197 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+        }
+        input[type="text"], input[type="email"], input[type="password"], input[type="tel"] {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .password-strength {
+            height: 5px;
+            margin-top: 5px;
+            background-color: #ddd;
+        }
+        .password-strength-text {
+            font-size: 12px;
+            margin-top: 5px;
+        }
+        .error {
+            color: red;
+            font-size: 12px;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .social-signup {
+            margin-top: 20px;
+        }
+        .social-btn {
+            display: inline-block;
+            margin-right: 10px;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .google-btn {
+            background-color: #db4437;
+            color: white;
+        }
+        .facebook-btn {
+            background-color: #4267B2;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <h2>Register</h2>
+    <form id="registerForm">
+        <div class="form-group">
+            <label for="username">Username:</label>
+            <input type="text" id="username" name="username" required>
+        </div>
+        <div class="form-group">
+            <label for="email">Email Address:</label>
+            <input type="email" id="email" name="email" required>
+        </div>
+        <div class="form-group">
+            <label for="password">Password:</label>
+            <input type="password" id="password" name="password" required>
+            <div class="password-strength"></div>
+            <div class="password-strength-text"></div>
+        </div>
+        <div class="form-group">
+            <label for="confirmPassword">Confirm Password:</label>
+            <input type="password" id="confirmPassword" name="confirmPassword" required>
+        </div>
+        <div class="form-group">
+            <label for="profilePicture">Profile Picture (optional):</label>
+            <input type="file" id="profilePicture" name="profilePicture" accept="image/*">
+        </div>
+        <div class="form-group">
+            <label for="fullName">Full Name (optional):</label>
+            <input type="text" id="fullName" name="fullName">
+        </div>
+        <div class="form-group">
+            <label for="phoneNumber">Phone Number (optional):</label>
+            <input type="tel" id="phoneNumber" name="phoneNumber">
+        </div>
+        <div class="form-group">
+            <label for="captcha">Captcha:</label>
+            <div id="captcha"></div>
+            <input type="text" id="captchaInput" name="captchaInput" required>
+        </div>
+        <div class="form-group">
+            <input type="checkbox" id="termsAgreement" name="termsAgreement" required>
+            <label for="termsAgreement">I agree to the Terms of Service and Privacy Policy</label>
+        </div>
+        <button type="submit">Register</button>
+    </form>
+    <div class="social-signup">
+        <button class="social-btn google-btn">Sign up with Google</button>
+        <button class="social-btn facebook-btn">Sign up with Facebook</button>
+    </div>
+    <p>Already have an account? <a href="login.html">Login here</a></p>
+
+    <script>
+        const passwordInput = document.getElementById('password');
+        const confirmPasswordInput = document.getElementById('confirmPassword');
+        const passwordStrength = document.querySelector('.password-strength');
+        const passwordStrengthText = document.querySelector('.password-strength-text');
+        const form = document.getElementById('registerForm');
+
+        const passwordRules = {
+            minLength: 8,
+            hasUppercase: /[A-Z]/,
+            hasLowercase: /[a-z]/,
+            hasNumber: /\d/,
+            hasSpecialChar: /[!@#$%^&*()-_=+[\]{}|;:'",.<>?/]/
+        };
+
+        function checkPasswordStrength(password) {
+            let strength = 0;
+            let feedback = [];
+
+            if (password.length >= passwordRules.minLength) strength++;
+            else feedback.push("At least 8 characters");
+
+            if (passwordRules.hasUppercase.test(password)) strength++;
+            else feedback.push("At least 1 uppercase letter");
+
+            if (passwordRules.hasLowercase.test(password)) strength++;
+            else feedback.push("At least 1 lowercase letter");
+
+            if (passwordRules.hasNumber.test(password)) strength++;
+            else feedback.push("At least 1 number");
+
+            if (passwordRules.hasSpecialChar.test(password)) strength++;
+            else feedback.push("At least 1 special character");
+
+            return { strength, feedback };
+        }
+
+        passwordInput.addEventListener('input', function() {
+            const { strength, feedback } = checkPasswordStrength(this.value);
+            const percent = (strength / 5) * 100;
+            passwordStrength.style.width = `${percent}%`;
+            passwordStrength.style.backgroundColor = 
+                percent <= 25 ? '#ff4d4d' :
+                percent <= 50 ? '#ffa500' :
+                percent <= 75 ? '#ffff00' : '#00ff00';
+
+            passwordStrengthText.textContent = feedback.join(', ') || 'Strong password';
+        });
+
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            // Validate password
+            const { strength, feedback } = checkPasswordStrength(passwordInput.value);
+            if (strength < 5) {
+                alert('Password does not meet the requirements: ' + feedback.join(', '));
+                return;
+            }
+
+            // Check if passwords match
+            if (passwordInput.value !== confirmPasswordInput.value) {
+                alert('Passwords do not match');
+                return;
+            }
+
+            // Here you would typically send the form data to your server
+            console.log('Form submitted');
+        });
+
+        // Captcha simulation (replace with actual captcha implementation)
+        const captcha = document.getElementById('captcha');
+        captcha.textContent = 'CAPTCHA: ' + Math.random().toString(36).substring(7);
+    </script>
+</body>
+</html>

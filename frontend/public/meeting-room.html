@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Chat Meeting Room</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            margin: 0;
+            padding: 0;
+
+            background: linear-gradient(-45deg, #00b4d8, #ffd60a, #38b000);
+            background-size: 400% 400%;
+            animation: gradientBG 15s ease infinite;
+        }
+        .meeting-container {
+            display: flex;
+            height: 100vh;
+        }
+        .video-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            padding: 20px;
+            flex-grow: 1;
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(10px);
+            border: 2px solid rgba(255, 214, 10, 0.3);
+        }
+        .video-item {
+            background-color: #000;
+            border-radius: 8px;
+            overflow: hidden;
+
+
+            transition: all 0.3s ease;
+            border: 3px solid #00b4d8;
+        }
+        .video-item:hover {
+
+            border-color: #ffd60a;
+            box-shadow: 0 0 20px rgba(56, 176, 0, 0.3);
+        }
+        .controls {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+
+            background: linear-gradient(to top, rgba(0, 180, 216, 0.9), rgba(0, 180, 216, 0.7));
+            backdrop-filter: blur(5px);
+            padding: 10px;
+            display: flex;
+            justify-content: center;
+        }
+        .control-btn {
+            margin: 0 10px;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+
+            background-color: #00b4d8;
+            color: white;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 180, 216, 0.3);
+            transform-origin: center;
+        }
+        .control-btn:hover {
+
+            background-color: #0096c7;
+            transform: scale(1.1);
+            box-shadow: 0 6px 20px rgba(0, 180, 216, 0.4);
+        }
+        .control-btn:active {
+            transform: scale(0.95);
+        }
+        .chat-panel {
+            width: 300px;
+
+
+            background: rgba(255, 255, 255, 0.9);
+            border-left: 3px solid #ffd60a;
+            display: flex;
+            flex-direction: column;
+            box-shadow: -2px 0 10px rgba(0,0,0,0.1);
+        }
+        .chat-messages {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding: 10px;
+        }
+        .chat-messages div {
+            padding: 8px 12px;
+            margin: 4px 0;
+            border-radius: 15px;
+
+            background-color: #caf0f8;
+            border-left: 3px solid #38b000;
+            animation: slideIn 0.3s ease;
+        }
+        .chat-messages div:nth-child(even) {
+            background-color: #fff1a8;
+            border-left: 3px solid #00b4d8;
+        }
+        @keyframes slideIn {
+            from {
+                transform: translateX(-20px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+        .chat-input {
+            padding: 10px;
+            border-top: 1px solid #ddd;
+        }
+        #chat-message {
+            width: 100%;
+            padding: 8px 15px;
+
+            border: 2px solid #00b4d8;
+            border-radius: 20px;
+            margin-bottom: 5px;
+            transition: all 0.3s ease;
+        }
+        #chat-message:focus {
+            outline: none;
+
+            border-color: #ffd60a;
+            box-shadow: 0 0 10px rgba(56, 176, 0, 0.3);
+            transform: scale(1.01);
+        }
+    </style>
+</head>
+<body>
+    <div class="meeting-container">
+        <div class="video-grid" id="video-grid"></div>
+        <div class="chat-panel">
+            <div class="chat-messages" id="chat-messages"></div>
+            <div class="chat-input">
+                <input type="text" id="chat-message" placeholder="Type a message...">
+                <button onclick="sendMessage()">Send</button>
+            </div>
+        </div>
+    </div>
+    <div class="controls">
+        <button class="control-btn" id="mute-btn">Mute</button>
+        <button class="control-btn" id="video-btn">Stop Video</button>
+        <button class="control-btn" id="share-btn">Share Screen</button>
+        <button class="control-btn" id="leave-btn">Leave Meeting</button>
+    </div>
+
+    <script src="https://unpkg.com/peerjs@1.3.1/dist/peerjs.min.js"></script>
+    <script>
+        const videoGrid = document.getElementById('video-grid');
+        const muteBtn = document.getElementById('mute-btn');
+        const videoBtn = document.getElementById('video-btn');
+        const shareBtn = document.getElementById('share-btn');
+        const leaveBtn = document.getElementById('leave-btn');
+        const chatMessages = document.getElementById('chat-messages');
+        const chatInput = document.getElementById('chat-message');
+
+        let myVideoStream;
+        const urlParams = new URLSearchParams(window.location.search);
+        const meetingId = urlParams.get('id');
+
+        document.title = `Meeting: ${meetingId}`;
+
+        const myPeer = new Peer(undefined, {
+            host: '/',
+            port: '3001'
+        });
+
+        const myVideo = document.createElement('video');
+        myVideo.muted = true;
+
+        navigator.mediaDevices.getUserMedia({
+            video: true,
+            audio: true
+        }).then(stream => {
+            myVideoStream = stream;
+            addVideoStream(myVideo, stream);
+
+            myPeer.on('call', call => {
+                call.answer(stream);
+                const video = document.createElement('video');
+                call.on('stream', userVideoStream => {
+                    addVideoStream(video, userVideoStream);
+                });
+            });
+
+
+            myPeer.on('open', id => {
+                socket.emit('join-room', meetingId, id);
+            });
+        });
+
+        function addVideoStream(video, stream) {
+            video.srcObject = stream;
+            video.addEventListener('loadedmetadata', () => {
+                video.play();
+            });
+            videoGrid.append(video);
+        }
+
+        muteBtn.addEventListener('click', () => {
+            const enabled = myVideoStream.getAudioTracks()[0].enabled;
+            if (enabled) {
+                myVideoStream.getAudioTracks()[0].enabled = false;
+                muteBtn.textContent = 'Unmute';
+            } else {
+                myVideoStream.getAudioTracks()[0].enabled = true;
+                muteBtn.textContent = 'Mute';
+            }
+        });
+
+        videoBtn.addEventListener('click', () => {
+            const enabled = myVideoStream.getVideoTracks()[0].enabled;
+            if (enabled) {
+                myVideoStream.getVideoTracks()[0].enabled = false;
+                videoBtn.textContent = 'Start Video';
+            } else {
+                myVideoStream.getVideoTracks()[0].enabled = true;
+                videoBtn.textContent = 'Stop Video';
+            }
+        });
+
+        shareBtn.addEventListener('click', () => {
+            navigator.mediaDevices.getDisplayMedia({
+                video: {
+                    cursor: "always"
+                },
+                audio: {
+                    echoCancellation: true,
+                    noiseSuppression: true
+                }
+            }).then(stream => {
+                let videoTrack = stream.getVideoTracks()[0];
+                let sender = myPeer.getSenders().find(function(s) {
+                    return s.track.kind == videoTrack.kind;
+                });
+                sender.replaceTrack(videoTrack);
+            }).catch(err => {
+                console.log("Unable to get display media " + err);
+            });
+        });
+
+        leaveBtn.addEventListener('click', () => {
+            window.location.href = 'index.html';
+        });
+
+        function sendMessage() {
+            const message = chatInput.value;
+            if (message) {
+                appendMessage('You: ' + message);
+                chatInput.value = '';
+                // Send message to other peers here
+            }
+        }
+
+        function appendMessage(message) {
+            const messageElement = document.createElement('div');
+            messageElement.textContent = message;
+            chatMessages.append(messageElement);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+                // Add fun filters for video
+        const filters = ['none', 'grayscale', 'sepia', 'invert', 'saturate(2)'];
+        let currentFilter = 0;
+
+        // Add filter button to controls
+        const filterBtn = document.createElement('button');
+        filterBtn.className = 'control-btn';
+        filterBtn.textContent = '🎨 Filter';
+        filterBtn.onclick = () => {
+            currentFilter = (currentFilter + 1) % filters.length;
+            document.querySelectorAll('.video-item video').forEach(video => {
+                video.style.filter = filters[currentFilter];
+            });
+        };
+        document.querySelector('.controls').appendChild(filterBtn);
+
+        // Add reaction emojis
+        const reactionBtn = document.createElement('button');
+        reactionBtn.className = 'control-btn';
+        reactionBtn.textContent = '👍 React';
+        reactionBtn.onclick = () => {
+            const emoji = ['👍', '❤️', '😂', '👏', '🎉'][Math.floor(Math.random() * 5)];
+            const reaction = document.createElement('div');
+            reaction.className = 'reaction';
+            reaction.textContent = emoji;
+            reaction.style.cssText = `
+                position: fixed;
+                bottom: 80px;
+                left: ${Math.random() * 100}vw;
+                animation: floatUp 3s ease-out forwards;
+                font-size: 2em;
+            `;
+            document.body.appendChild(reaction);
+            setTimeout(() => reaction.remove(), 3000);
+        };
+        document.querySelector('.controls').appendChild(reactionBtn);
+
+        // Add floating emoji animation
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes floatUp {
+                0% { transform: translateY(0); opacity: 1; }
+                100% { transform: translateY(-100vh); opacity: 0; }
+            }
+        `;
+        document.head.appendChild(style);
+
+        // Add sound effects for actions
+        const playSound = (action) => {
+            const sounds = {
+                join: '🔔',
+                leave: '👋',
+                message: '💬'
+            };
+            // You can replace these with actual sound effects
+            console.log(`Sound played: ${sounds[action]}`);
+        };
+
+        // Add virtual background toggle (when supported by browser)
+        const bgBtn = document.createElement('button');
+        bgBtn.className = 'control-btn';
+        bgBtn.textContent = '🖼️ BG';
+        bgBtn.onclick = async () => {
+            try {
+                const backgrounds = ['blur', 'space', 'office', 'beach'];
+                // Implementation depends on browser support
+                // This is a placeholder for the concept
+                alert('Virtual background changed! (Feature demo)');
+            } catch (e) {
+                console.log('Virtual background not supported');
+            }
+        };
+        document.querySelector('.controls').appendChild(bgBtn);
+
+    </script>
+</body>
+</html>
